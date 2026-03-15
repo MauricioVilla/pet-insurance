@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import Claim, ClaimStatus
+from .models import Claim
+from .constants import ClaimModelChoices
 from apps.pets.models import Pet
 from apps.pets.serializers import PetReadSerializer
 
@@ -7,7 +8,8 @@ from apps.pets.serializers import PetReadSerializer
 class ClaimCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Claim
-        fields = ('pet', 'invoice', 'invoice_date', 'date_of_event', 'amount')
+        fields = ('id', 'pet', 'invoice', 'invoice_date', 'date_of_event', 'amount', 'status')
+        read_only_fields = ('id', 'status')
 
     def validate_pet(self, pet):
         user = self.context['request'].user
@@ -30,26 +32,39 @@ class ClaimCreateSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        invoice_file = validated_data.get('invoice')
+        from .tasks import process_claim
+
         claim = Claim(**validated_data)
         claim.owner = self.context['request'].user
 
         # Compute hash before saving to catch duplicates
         claim.invoice_hash = claim.compute_invoice_hash()
 
+        # Validate duplicate invoice
+        if Claim.objects.filter(invoice_hash=claim.invoice_hash).exists():
+            raise serializers.ValidationError(
+                {'invoice': 'This invoice has already been submitted.'}
+            )
+
+        # Transition to PROCESSING immediately
+        claim.status = ClaimModelChoices.STATUS_CHOICES.PROCESSING
         claim.save()
+
+        # Dispatch background task
+        process_claim.delay(claim.pk)
 
         return claim
 
 
 class ClaimReadSerializer(serializers.ModelSerializer):
     pet = PetReadSerializer(read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
 
     class Meta:
         model = Claim
         fields = (
             'id', 'pet', 'invoice', 'invoice_date', 'date_of_event',
-            'amount', 'status', 'review_notes', 'created_at', 'updated_at'
+            'amount', 'status', 'status_display', 'review_notes', 'created_at', 'updated_at'
         )
         read_only_fields = fields
 
@@ -62,7 +77,7 @@ class ClaimReviewSerializer(serializers.ModelSerializer):
         fields = ('status', 'review_notes')
 
     def validate_status(self, value):
-        allowed = (ClaimStatus.APPROVED, ClaimStatus.REJECTED)
+        allowed = (ClaimModelChoices.STATUS_CHOICES.APPROVED, ClaimModelChoices.STATUS_CHOICES.REJECTED)
         if value not in allowed:
             raise serializers.ValidationError(
                 f'Support can only set status to: {", ".join(allowed)}'
@@ -71,7 +86,7 @@ class ClaimReviewSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         instance = self.instance
-        if instance.status != ClaimStatus.IN_REVIEW:
+        if instance.status != ClaimModelChoices.STATUS_CHOICES.IN_REVIEW:
             raise serializers.ValidationError(
                 'Only claims with status IN_REVIEW can be approved or rejected.'
             )

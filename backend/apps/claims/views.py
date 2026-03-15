@@ -4,7 +4,8 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from apps.users.models import UserRole
-from .models import Claim, ClaimStatus
+from .models import Claim
+from .constants import ClaimModelChoices
 from .serializers import ClaimCreateSerializer, ClaimReadSerializer, ClaimReviewSerializer
 from .filters import ClaimFilter
 

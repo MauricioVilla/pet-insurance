@@ -8,7 +8,7 @@
     <div style="margin-bottom:1rem;display:flex;gap:.75rem;flex-wrap:wrap">
       <select v-model="filter" class="form-control" style="width:auto">
         <option value="">All statuses</option>
-        <option v-for="s in statuses" :key="s" :value="s">{{ s }}</option>
+        <option v-for="s in statuses" :key="s" :value="s">{{ statusLabels[s] }}</option>
       </select>
     </div>
 
@@ -21,17 +21,16 @@
       <table>
         <thead>
           <tr>
-            <th>#</th><th>Pet</th><th>Amount</th>
+            <th>Pet</th><th>Amount</th>
             <th>Event Date</th><th>Status</th><th>Notes</th><th>Created</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="c in claims" :key="c.id">
-            <td>{{ c.id }}</td>
             <td>{{ c.pet?.name }}</td>
             <td>${{ c.amount }}</td>
             <td>{{ c.date_of_event }}</td>
-            <td><span :class="`badge badge-${c.status}`">{{ c.status }}</span></td>
+            <td><span :class="`badge badge-${c.status}`">{{ c.status_display }}</span></td>
             <td style="max-width:200px;white-space:normal;font-size:.8rem;color:#718096">{{ c.review_notes || '–' }}</td>
             <td>{{ new Date(c.created_at).toLocaleDateString() }}</td>
           </tr>
@@ -50,7 +49,14 @@ const auth = useAuthStore()
 const claims = ref([])
 const loading = ref(true)
 const filter = ref('')
-const statuses = ['SUBMITTED', 'PROCESSING', 'IN_REVIEW', 'APPROVED', 'REJECTED']
+const statusLabels = {
+  SUBMITTED: 'Submitted',
+  PROCESSING: 'Processing',
+  IN_REVIEW: 'In Review',
+  APPROVED: 'Approved',
+  REJECTED: 'Rejected'
+}
+const statuses = Object.keys(statusLabels)
 
 async function fetchClaims() {
   loading.value = true

@@ -2,14 +2,7 @@ import hashlib
 from django.db import models
 from apps.users.models import User
 from apps.pets.models import Pet
-
-
-class ClaimStatus(models.TextChoices):
-    SUBMITTED = 'SUBMITTED', 'Submitted'
-    PROCESSING = 'PROCESSING', 'Processing'
-    IN_REVIEW = 'IN_REVIEW', 'In Review'
-    APPROVED = 'APPROVED', 'Approved'
-    REJECTED = 'REJECTED', 'Rejected'
+from .constants import ClaimModelChoices
 
 
 class Claim(models.Model):
@@ -22,8 +15,8 @@ class Claim(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(
         max_length=20,
-        choices=ClaimStatus.choices,
-        default=ClaimStatus.SUBMITTED
+        choices=ClaimModelChoices.STATUS_CHOICES,
+        default=ClaimModelChoices.STATUS_CHOICES.SUBMITTED
     )
     review_notes = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)

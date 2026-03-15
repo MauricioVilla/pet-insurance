@@ -13,7 +13,8 @@ def process_claim(self, claim_id: int):
     2. Validating coverage period
     3. Transitioning claim to IN_REVIEW if valid, REJECTED if not
     """
-    from .models import Claim, ClaimStatus
+    from .models import Claim
+    from .constants import ClaimModelChoices
 
     try:
         claim = Claim.objects.select_related('pet').get(pk=claim_id)
@@ -32,11 +33,11 @@ def process_claim(self, claim_id: int):
     is_valid = pet.is_covered_on(claim.date_of_event)
 
     if is_valid:
-        claim.status = ClaimStatus.IN_REVIEW
+        claim.status = ClaimModelChoices.STATUS_CHOICES.IN_REVIEW
         claim.review_notes = 'Coverage validated. Awaiting support review.'
         logger.info(f'[Task] Claim {claim_id} is valid → IN_REVIEW')
     else:
-        claim.status = ClaimStatus.REJECTED
+        claim.status = ClaimModelChoices.STATUS_CHOICES.REJECTED
         claim.review_notes = (
             f'Date of event ({claim.date_of_event}) falls outside '
             f'coverage period ({pet.coverage_start} – {pet.coverage_end}).'

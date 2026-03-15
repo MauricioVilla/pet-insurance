@@ -10,7 +10,8 @@ from rest_framework import status
 
 from apps.users.models import User, UserRole
 from apps.pets.models import Pet
-from apps.claims.models import Claim, ClaimStatus
+from apps.claims.models import Claim
+from apps.claims.constants import ClaimModelChoices
 
 
 def make_invoice(content=b'invoice content'):
@@ -66,7 +67,7 @@ class PetModelTest(TestCase):
 
 
 class ClaimAPITest(BaseTestCase):
-    @patch('apps.claims.serializers.process_claim.delay')
+    @patch('apps.claims.tasks.process_claim.delay')
     def test_customer_can_create_claim(self, mock_task):
         self.authenticate(self.customer)
         data = {
@@ -78,10 +79,10 @@ class ClaimAPITest(BaseTestCase):
         }
         response = self.client.post('/api/claims/', data, format='multipart')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['status'], ClaimStatus.PROCESSING)
+        self.assertEqual(response.data['status'], ClaimModelChoices.STATUS_CHOICES.PROCESSING)
         mock_task.assert_called_once()
 
-    @patch('apps.claims.serializers.process_claim.delay')
+    @patch('apps.claims.tasks.process_claim.delay')
     def test_claim_rejected_if_invoice_date_out_of_coverage(self, mock_task):
         self.authenticate(self.customer)
         data = {
@@ -95,7 +96,7 @@ class ClaimAPITest(BaseTestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         mock_task.assert_not_called()
 
-    @patch('apps.claims.serializers.process_claim.delay')
+    @patch('apps.claims.tasks.process_claim.delay')
     def test_duplicate_invoice_rejected(self, mock_task):
         self.authenticate(self.customer)
         content = b'unique invoice content'
@@ -120,7 +121,7 @@ class ClaimAPITest(BaseTestCase):
             invoice_date=self.today - timedelta(days=5),
             date_of_event=self.today - timedelta(days=5),
             amount=Decimal('100.00'),
-            status=ClaimStatus.IN_REVIEW,
+            status=ClaimModelChoices.STATUS_CHOICES.IN_REVIEW,
         )
         self.authenticate(self.support)
         response = self.client.patch(
@@ -130,7 +131,7 @@ class ClaimAPITest(BaseTestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         claim.refresh_from_db()
-        self.assertEqual(claim.status, ClaimStatus.APPROVED)
+        self.assertEqual(claim.status, ClaimModelChoices.STATUS_CHOICES.APPROVED)
 
     def test_customer_cannot_review_claim(self):
         claim = Claim.objects.create(
@@ -141,7 +142,7 @@ class ClaimAPITest(BaseTestCase):
             invoice_date=self.today - timedelta(days=5),
             date_of_event=self.today - timedelta(days=5),
             amount=Decimal('100.00'),
-            status=ClaimStatus.IN_REVIEW,
+            status=ClaimModelChoices.STATUS_CHOICES.IN_REVIEW,
         )
         self.authenticate(self.customer)
         response = self.client.patch(
@@ -160,7 +161,7 @@ class ClaimAPITest(BaseTestCase):
             invoice_date=self.today - timedelta(days=5),
             date_of_event=self.today - timedelta(days=5),
             amount=Decimal('100.00'),
-            status=ClaimStatus.PROCESSING,
+            status=ClaimModelChoices.STATUS_CHOICES.PROCESSING,
         )
         self.authenticate(self.support)
         response = self.client.patch(
@@ -186,5 +187,5 @@ class ClaimAPITest(BaseTestCase):
         self.authenticate(self.customer)
         response = self.client.get('/api/claims/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        for claim in response.data['results']:
+        for claim in response.data:
             self.assertNotEqual(claim.get('owner'), other_user.pk)

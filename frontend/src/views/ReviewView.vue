@@ -18,7 +18,7 @@
               Coverage: {{ c.pet?.coverage_start }} → {{ c.pet?.coverage_end }}
             </div>
             <div style="margin-top:.4rem">
-              <span :class="`badge badge-${c.status}`">{{ c.status }}</span>
+              <span :class="`badge badge-${c.status}`">{{ c.status_display }}</span>
             </div>
           </div>
           <div style="display:flex;gap:.5rem">
