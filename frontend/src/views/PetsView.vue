@@ -27,7 +27,7 @@
             <td v-if="auth.canReview">{{ pet.owner_name || pet.owner_email }}</td>
             <td>{{ pet.species }}</td>
             <td>{{ pet.birth_date }}</td>
-            <td><span :class="`badge badge-${pet.status}`">{{ pet.status_display || pet.status }}</span></td>
+            <td><span :class="`badge badge-${pet.status}`">{{ pet.status_display }}</span></td>
             <td>{{ pet.coverage_start || '–' }}</td>
             <td>{{ pet.coverage_end || '–' }}</td>
             <td>
