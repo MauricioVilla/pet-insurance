@@ -1,194 +1,175 @@
-import io
 from datetime import date, timedelta
 from decimal import Decimal
-from unittest.mock import patch
 
-from django.test import TestCase
-from django.core.files.uploadedfile import SimpleUploadedFile
-from rest_framework.test import APIClient
 from rest_framework import status
+from model_bakery import baker
 
-from apps.users.models import User
 from apps.users.constants import UserModelChoices
-from apps.pets.models import Pet
 from apps.pets.constants import PetModelChoices
-from apps.claims.models import Claim
 from apps.claims.constants import ClaimModelChoices
+from .conftest import make_invoice
 
 
-def make_invoice(content=b'invoice content'):
-    return SimpleUploadedFile('invoice.pdf', content, content_type='application/pdf')
-
-
-class BaseTestCase(TestCase):
-    def setUp(self):
-        self.client = APIClient()
-        self.customer = User.objects.create_user(
-            email='customer@test.com', password='pass1234', role=UserModelChoices.ROLE_CHOICES.CUSTOMER
-        )
-        self.support = User.objects.create_user(
-            email='support@test.com', password='pass1234', role=UserModelChoices.ROLE_CHOICES.SUPPORT
-        )
-        self.today = date.today()
-        self.pet = Pet.objects.create(
-            owner=self.customer,
-            name='Rex',
-            species='DOG',
-            birth_date=date(2020, 1, 1),
-            status=PetModelChoices.STATUS_CHOICES.ACTIVE,
-            coverage_start=self.today - timedelta(days=30),
-        )
-
-    def authenticate(self, user):
-        self.client.force_authenticate(user=user)
-
-
-class PetModelTest(TestCase):
-    def test_coverage_end_is_365_days_after_start(self):
+class TestPetModel:
+    def test_coverage_end_is_365_days_after_start(self, db):
         start = date(2024, 1, 1)
-        pet = Pet(
-            owner=User.objects.create_user(email='u@t.com', password='pw'),
-            name='Cat',
-            species='CAT',
+        pet = baker.make(
+            'pets.Pet',
+            species=PetModelChoices.SPECIES_CHOICES.CAT,
             birth_date=date(2022, 1, 1),
             coverage_start=start,
         )
-        pet.save()
-        self.assertEqual(pet.coverage_end, start + timedelta(days=365))
+        assert pet.coverage_end == start + timedelta(days=365)
 
-    def test_is_covered_on(self):
+    def test_is_covered_on(self, db):
         start = date(2024, 1, 1)
-        user = User.objects.create_user(email='u2@t.com', password='pw')
-        pet = Pet.objects.create(
-            owner=user, name='Dog', species='DOG',
-            birth_date=date(2020, 1, 1), coverage_start=start
+        pet = baker.make(
+            'pets.Pet',
+            species=PetModelChoices.SPECIES_CHOICES.DOG,
+            birth_date=date(2020, 1, 1),
+            coverage_start=start,
         )
-        self.assertTrue(pet.is_covered_on(start))
-        self.assertTrue(pet.is_covered_on(start + timedelta(days=200)))
-        self.assertFalse(pet.is_covered_on(start - timedelta(days=1)))
-        self.assertFalse(pet.is_covered_on(start + timedelta(days=366)))
+        assert pet.is_covered_on(start) is True
+        assert pet.is_covered_on(start + timedelta(days=200)) is True
+        assert pet.is_covered_on(start - timedelta(days=1)) is False
+        assert pet.is_covered_on(start + timedelta(days=366)) is False
 
 
-class ClaimAPITest(BaseTestCase):
-    @patch('apps.claims.tasks.process_claim.delay')
-    def test_customer_can_create_claim(self, mock_task):
-        self.authenticate(self.customer)
+class TestClaimAPI:
+    def test_customer_can_create_claim(self, api_client, customer, active_pet, today, mocker):
+        mocker.patch('apps.claims.tasks.process_claim.delay')
+        api_client.force_authenticate(user=customer)
         data = {
-            'pet': self.pet.pk,
+            'pet': active_pet.pk,
             'invoice': make_invoice(),
-            'invoice_date': str(self.today - timedelta(days=10)),
-            'date_of_event': str(self.today - timedelta(days=10)),
+            'invoice_date': str(today - timedelta(days=10)),
+            'date_of_event': str(today - timedelta(days=10)),
             'amount': '250.00',
         }
-        response = self.client.post('/api/claims/', data, format='multipart')
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['status'], ClaimModelChoices.STATUS_CHOICES.PROCESSING)
-        mock_task.assert_called_once()
+        response = api_client.post('/api/claims/', data, format='multipart')
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.data['status'] == ClaimModelChoices.STATUS_CHOICES.PROCESSING
+        from apps.claims.tasks import process_claim
+        process_claim.delay.assert_called_once()
 
-    @patch('apps.claims.tasks.process_claim.delay')
-    def test_claim_rejected_if_invoice_date_out_of_coverage(self, mock_task):
-        self.authenticate(self.customer)
+    def test_claim_rejected_if_invoice_date_out_of_coverage(self, api_client, customer, active_pet, today, mocker):
+        mock_task = mocker.patch('apps.claims.tasks.process_claim.delay')
+        api_client.force_authenticate(user=customer)
         data = {
-            'pet': self.pet.pk,
+            'pet': active_pet.pk,
             'invoice': make_invoice(),
-            'invoice_date': str(self.today - timedelta(days=365)),
-            'date_of_event': str(self.today - timedelta(days=365)),
+            'invoice_date': str(today - timedelta(days=365)),
+            'date_of_event': str(today - timedelta(days=365)),
             'amount': '100.00',
         }
-        response = self.client.post('/api/claims/', data, format='multipart')
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        response = api_client.post('/api/claims/', data, format='multipart')
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
         mock_task.assert_not_called()
 
-    @patch('apps.claims.tasks.process_claim.delay')
-    def test_duplicate_invoice_rejected(self, mock_task):
-        self.authenticate(self.customer)
+    def test_duplicate_invoice_rejected(self, api_client, customer, active_pet, today, mocker):
+        mocker.patch('apps.claims.tasks.process_claim.delay')
+        api_client.force_authenticate(user=customer)
         content = b'unique invoice content'
         data = {
-            'pet': self.pet.pk,
+            'pet': active_pet.pk,
             'invoice': make_invoice(content),
-            'invoice_date': str(self.today - timedelta(days=5)),
-            'date_of_event': str(self.today - timedelta(days=5)),
+            'invoice_date': str(today - timedelta(days=5)),
+            'date_of_event': str(today - timedelta(days=5)),
             'amount': '100.00',
         }
-        self.client.post('/api/claims/', data, format='multipart')
+        api_client.post('/api/claims/', data, format='multipart')
         data['invoice'] = make_invoice(content)
-        response = self.client.post('/api/claims/', data, format='multipart')
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        response = api_client.post('/api/claims/', data, format='multipart')
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_support_can_review_claim(self):
-        claim = Claim.objects.create(
-            owner=self.customer,
-            pet=self.pet,
+    def test_support_can_review_claim(self, api_client, customer, support, active_pet, today):
+        claim = baker.make(
+            'claims.Claim',
+            owner=customer,
+            pet=active_pet,
             invoice=make_invoice(),
             invoice_hash='abc123unique',
-            invoice_date=self.today - timedelta(days=5),
-            date_of_event=self.today - timedelta(days=5),
+            invoice_date=today - timedelta(days=5),
+            date_of_event=today - timedelta(days=5),
             amount=Decimal('100.00'),
             status=ClaimModelChoices.STATUS_CHOICES.IN_REVIEW,
         )
-        self.authenticate(self.support)
-        response = self.client.patch(
+        api_client.force_authenticate(user=support)
+        response = api_client.patch(
             f'/api/claims/{claim.pk}/review/',
             {'status': 'APPROVED', 'review_notes': 'All good'},
             format='json',
         )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        assert response.status_code == status.HTTP_200_OK
         claim.refresh_from_db()
-        self.assertEqual(claim.status, ClaimModelChoices.STATUS_CHOICES.APPROVED)
+        assert claim.status == ClaimModelChoices.STATUS_CHOICES.APPROVED
 
-    def test_customer_cannot_review_claim(self):
-        claim = Claim.objects.create(
-            owner=self.customer,
-            pet=self.pet,
+    def test_customer_cannot_review_claim(self, api_client, customer, active_pet, today):
+        claim = baker.make(
+            'claims.Claim',
+            owner=customer,
+            pet=active_pet,
             invoice=make_invoice(),
             invoice_hash='xyz789unique',
-            invoice_date=self.today - timedelta(days=5),
-            date_of_event=self.today - timedelta(days=5),
+            invoice_date=today - timedelta(days=5),
+            date_of_event=today - timedelta(days=5),
             amount=Decimal('100.00'),
             status=ClaimModelChoices.STATUS_CHOICES.IN_REVIEW,
         )
-        self.authenticate(self.customer)
-        response = self.client.patch(
+        api_client.force_authenticate(user=customer)
+        response = api_client.patch(
             f'/api/claims/{claim.pk}/review/',
             {'status': 'APPROVED'},
             format='json',
         )
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_support_cannot_review_non_in_review_claim(self):
-        claim = Claim.objects.create(
-            owner=self.customer,
-            pet=self.pet,
+    def test_support_cannot_review_non_in_review_claim(self, api_client, customer, support, active_pet, today):
+        claim = baker.make(
+            'claims.Claim',
+            owner=customer,
+            pet=active_pet,
             invoice=make_invoice(),
             invoice_hash='hash456unique',
-            invoice_date=self.today - timedelta(days=5),
-            date_of_event=self.today - timedelta(days=5),
+            invoice_date=today - timedelta(days=5),
+            date_of_event=today - timedelta(days=5),
             amount=Decimal('100.00'),
             status=ClaimModelChoices.STATUS_CHOICES.PROCESSING,
         )
-        self.authenticate(self.support)
-        response = self.client.patch(
+        api_client.force_authenticate(user=support)
+        response = api_client.patch(
             f'/api/claims/{claim.pk}/review/',
             {'status': 'APPROVED'},
             format='json',
         )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_customer_only_sees_own_claims(self):
-        other_user = User.objects.create_user(email='other@test.com', password='pw')
-        other_pet = Pet.objects.create(
-            owner=other_user, name='Cat', species='CAT',
-            birth_date=date(2020, 1, 1), coverage_start=self.today - timedelta(days=10)
+    def test_customer_only_sees_own_claims(self, api_client, customer, today):
+        other_user = baker.make(
+            'users.User',
+            email='other@test.com',
+            role=UserModelChoices.ROLE_CHOICES.CUSTOMER,
+            is_active=True,
         )
-        Claim.objects.create(
-            owner=other_user, pet=other_pet,
-            invoice=make_invoice(), invoice_hash='other_hash',
-            invoice_date=self.today - timedelta(days=5),
-            date_of_event=self.today - timedelta(days=5),
+        other_pet = baker.make(
+            'pets.Pet',
+            owner=other_user,
+            species=PetModelChoices.SPECIES_CHOICES.CAT,
+            birth_date=date(2020, 1, 1),
+            coverage_start=today - timedelta(days=10),
+        )
+        baker.make(
+            'claims.Claim',
+            owner=other_user,
+            pet=other_pet,
+            invoice=make_invoice(),
+            invoice_hash='other_hash',
+            invoice_date=today - timedelta(days=5),
+            date_of_event=today - timedelta(days=5),
             amount=Decimal('50.00'),
         )
-        self.authenticate(self.customer)
-        response = self.client.get('/api/claims/')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        api_client.force_authenticate(user=customer)
+        response = api_client.get('/api/claims/')
+        assert response.status_code == status.HTTP_200_OK
         for claim in response.data:
-            self.assertNotEqual(claim.get('owner'), other_user.pk)
+            assert claim.get('owner') != other_user.pk
