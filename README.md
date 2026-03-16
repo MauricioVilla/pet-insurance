@@ -35,10 +35,10 @@ docker-compose up --build
 | Service | URL |
 |---|---|
 | Frontend | http://localhost |
-| Backend API | http://localhost:8000/api/ |
-| Swagger Docs | http://localhost:8000/api/docs/ |
-| ReDoc | http://localhost:8000/api/redoc/ |
-| Django Admin | http://localhost:8000/admin/ |
+| Backend API | http://localhost/api/ |
+| Swagger Docs | http://localhost/api/docs/ |
+| ReDoc | http://localhost/api/redoc/ |
+| Django Admin | http://localhost/admin/ |
 
 ### Create a superuser (optional)
 
@@ -173,7 +173,10 @@ docker-compose -f docker-compose.dev.yml up --build
 | Service | URL |
 |---|---|
 | Frontend (Vite + HMR) | http://localhost:5173 |
-| Backend API | http://localhost:8000/api/ |
+| Backend API | http://localhost:5173/api/ |
+| Swagger Docs | http://localhost:5173/api/docs/ |
+| ReDoc | http://localhost:5173/api/redoc/ |
+| Django Admin | http://localhost:5173/admin/ |
 
 Any changes in `frontend/src/` are reflected instantly without rebuild.
 
@@ -188,7 +191,10 @@ docker-compose up --build -d
 | Service | URL |
 |---|---|
 | Frontend (Nginx) | http://localhost |
-| Backend API | http://localhost:8000/api/ |
+| Backend API | http://localhost/api/ |
+| Swagger Docs | http://localhost/api/docs/ |
+| ReDoc | http://localhost/api/redoc/ |
+| Django Admin | http://localhost/admin/ |
 
 ---
 
