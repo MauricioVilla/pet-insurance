@@ -33,7 +33,7 @@
             <td>
               <div style="display:flex;gap:.4rem">
                 <button v-if="auth.canReview && pet.status === 'PENDING'" class="btn btn-success btn-sm" :disabled="activating === pet.id" @click="openActivateModal(pet)">
-                  ✓ Activate
+                  ✓ Approve
                 </button>
                 <template v-if="auth.isCustomer">
                   <button class="btn btn-secondary btn-sm" @click="editPet(pet)">Edit</button>
