@@ -19,8 +19,8 @@ class PetService(BaseService):
         return Pet.objects.filter(owner=user).select_related('owner')
 
     def activate(self, pet, coverage_start=None):
-        if pet.status == PetModelChoices.STATUS_CHOICES.ACTIVE:
-            raise ValidationError({'detail': 'Pet coverage is already active.'})
+        if pet.status in (PetModelChoices.STATUS_CHOICES.ACTIVE, PetModelChoices.STATUS_CHOICES.APPROVED):
+            raise ValidationError({'detail': 'Pet coverage is already approved or active.'})
 
         if coverage_start and isinstance(coverage_start, str):
             try:
