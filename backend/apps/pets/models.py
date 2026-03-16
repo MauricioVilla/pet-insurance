@@ -35,7 +35,10 @@ class Pet(models.Model):
         return self.coverage_start <= date <= self.coverage_end
 
     def activate(self, coverage_start=None):
-        """Activate coverage starting on given date (or today)."""
-        self.status = PetModelChoices.STATUS_CHOICES.ACTIVE
+        """Approve coverage starting on given date (or today). Sets ACTIVE or APPROVED depending on date."""
         self.coverage_start = coverage_start or timezone.now().date()
+        if self.coverage_start <= timezone.now().date():
+            self.status = PetModelChoices.STATUS_CHOICES.ACTIVE
+        else:
+            self.status = PetModelChoices.STATUS_CHOICES.APPROVED
         self.save()

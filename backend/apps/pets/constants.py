@@ -10,5 +10,6 @@ class PetModelChoices:
 
     STATUS_CHOICES = Choices(
         ('PENDING', 'Pending'),
+        ('APPROVED', 'Approved'),
         ('ACTIVE', 'Active'),
     )
