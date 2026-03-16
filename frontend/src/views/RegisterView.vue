@@ -19,7 +19,7 @@
         <label>Confirm Password</label>
         <input v-model="form.password_confirm" type="password" class="form-control" />
       </div>
-      <button class="btn btn-primary" style="width:100%" :disabled="loading" @click="submit">
+      <button class="btn btn-primary" style="width:auto;padding:.5rem 2rem;display:block;margin:0 auto" :disabled="loading" @click="submit">
         {{ loading ? 'Creating account…' : 'Register' }}
       </button>
       <p style="margin-top:1rem;text-align:center;font-size:.9rem">

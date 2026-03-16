@@ -1,13 +1,13 @@
-from rest_framework import viewsets, permissions, mixins, status
+from rest_framework import viewsets, permissions, mixins
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, extend_schema_view
-from apps.users.models import UserRole
-from .models import Claim
-from .constants import ClaimModelChoices
 from .serializers import ClaimCreateSerializer, ClaimReadSerializer, ClaimReviewSerializer
-from .filters import ClaimFilter
+from ..filters import ClaimFilter
+from ..services import ClaimService
+
+claim_service = ClaimService()
 
 
 @extend_schema_view(
@@ -26,11 +26,7 @@ class ClaimViewSet(
     filterset_class = ClaimFilter
 
     def get_queryset(self):
-        user = self.request.user
-        qs = Claim.objects.select_related('pet', 'owner')
-        if user.role in (UserRole.ADMIN, UserRole.SUPPORT):
-            return qs.all()
-        return qs.filter(owner=user)
+        return claim_service.get_queryset(self.request.user)
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -53,7 +49,9 @@ class ClaimViewSet(
     @action(detail=True, methods=['patch'], url_path='review')
     def review(self, request, pk=None):
         claim = self.get_object()
-        serializer = ClaimReviewSerializer(claim, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
+        claim = claim_service.review_claim(
+            claim,
+            status=request.data.get('status'),
+            review_notes=request.data.get('review_notes', ''),
+        )
         return Response(ClaimReadSerializer(claim).data)

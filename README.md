@@ -160,6 +160,36 @@ PATCH  /api/claims/{id}/review/  Approve/reject claim (Support/Admin only)
 
 ---
 
+## Development Mode (Hot Reload)
+
+Start all services with Vite dev server and hot reload:
+
+```bash
+docker-compose -f docker-compose.dev.yml up --build
+```
+
+| Service | URL |
+|---|---|
+| Frontend (Vite + HMR) | http://localhost:5173 |
+| Backend API | http://localhost:8000/api/ |
+
+Any changes in `frontend/src/` are reflected instantly without rebuild.
+
+## Production Mode
+
+Full build with Nginx serving the frontend:
+
+```bash
+docker-compose up --build -d
+```
+
+| Service | URL |
+|---|---|
+| Frontend (Nginx) | http://localhost |
+| Backend API | http://localhost:8000/api/ |
+
+---
+
 ## Running Tests
 
 ```bash

@@ -58,6 +58,8 @@ a:hover { text-decoration: underline; }
 .badge-IN_REVIEW  { background: #e9d8fd; color: #553c9a; }
 .badge-APPROVED   { background: #c6f6d5; color: #276749; }
 .badge-REJECTED   { background: #fed7d7; color: #c53030; }
+.badge-PENDING    { background: #fefcbf; color: #744210; }
+.badge-ACTIVE     { background: #c6f6d5; color: #276749; }
 
 /* Nav */
 .navbar {
@@ -83,9 +85,19 @@ a:hover { text-decoration: underline; }
 
 /* Table */
 table { width: 100%; border-collapse: collapse; }
-th, td { text-align: left; padding: .65rem .75rem; border-bottom: 1px solid #e2e8f0; font-size: .9rem; }
+th, td { text-align: left; padding: .65rem 1rem; border-bottom: 1px solid #e2e8f0; font-size: .85rem; white-space: nowrap; }
 th { font-weight: 600; color: #4a5568; background: #f7fafc; }
 tr:last-child td { border-bottom: none; }
+
+/* Tabs */
+.tabs { display: flex; gap: 0; margin-bottom: 1rem; border-bottom: 2px solid #e2e8f0; }
+.tab {
+  padding: .5rem 1rem; background: none; border: none; cursor: pointer;
+  font-size: .9rem; font-weight: 500; color: #718096;
+  border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all .15s;
+}
+.tab:hover { color: #4a5568; }
+.tab.active { color: #5a67d8; border-bottom-color: #5a67d8; font-weight: 600; }
 
 /* Empty state */
 .empty { text-align: center; padding: 3rem; color: #a0aec0; }

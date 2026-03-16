@@ -4,9 +4,8 @@
       <div class="container navbar-inner">
         <span class="navbar-brand">🐾 <span>PetInsure</span></span>
         <div class="navbar-links">
-          <RouterLink to="/pets">My Pets</RouterLink>
+          <RouterLink to="/pets">{{ auth.isCustomer ? 'My Pets' : 'Pets' }}</RouterLink>
           <RouterLink to="/claims">Claims</RouterLink>
-          <RouterLink v-if="auth.canReview" to="/review">Review Queue</RouterLink>
         </div>
         <div class="navbar-user">
           {{ auth.user?.name || auth.user?.email }}

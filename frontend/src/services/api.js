@@ -17,10 +17,17 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
+
+    // Don't try to refresh on auth endpoints
+    if (originalRequest.url.startsWith('/auth/')) {
+      return Promise.reject(error)
+    }
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
       try {
         const refresh = localStorage.getItem('refresh_token')
+        if (!refresh) throw new Error('No refresh token')
         const { data } = await axios.post('/api/auth/token/refresh/', { refresh })
         localStorage.setItem('access_token', data.access)
         originalRequest.headers.Authorization = `Bearer ${data.access}`

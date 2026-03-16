@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     'django_filters',
     'drf_spectacular',
     # Local
+    'apps.core',
     'apps.users',
     'apps.pets',
     'apps.claims',
@@ -37,6 +38,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+X_FRAME_OPTIONS = 'SAMEORIGIN'
 
 ROOT_URLCONF = 'config.urls'
 
@@ -115,6 +118,11 @@ CORS_ALLOWED_ORIGINS = config(
     default='http://localhost:5173,http://localhost:3000,http://localhost:80'
 ).split(',')
 CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = config(
+    'CSRF_TRUSTED_ORIGINS',
+    default='http://localhost:5173,http://localhost:3000,http://localhost:80,http://localhost'
+).split(',')
 
 # Celery
 CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://redis:6379/0')

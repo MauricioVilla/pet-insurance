@@ -8,8 +8,10 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIClient
 from rest_framework import status
 
-from apps.users.models import User, UserRole
+from apps.users.models import User
+from apps.users.constants import UserModelChoices
 from apps.pets.models import Pet
+from apps.pets.constants import PetModelChoices
 from apps.claims.models import Claim
 from apps.claims.constants import ClaimModelChoices
 
@@ -22,10 +24,10 @@ class BaseTestCase(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.customer = User.objects.create_user(
-            email='customer@test.com', password='pass1234', role=UserRole.CUSTOMER
+            email='customer@test.com', password='pass1234', role=UserModelChoices.ROLE_CHOICES.CUSTOMER
         )
         self.support = User.objects.create_user(
-            email='support@test.com', password='pass1234', role=UserRole.SUPPORT
+            email='support@test.com', password='pass1234', role=UserModelChoices.ROLE_CHOICES.SUPPORT
         )
         self.today = date.today()
         self.pet = Pet.objects.create(
@@ -33,6 +35,7 @@ class BaseTestCase(TestCase):
             name='Rex',
             species='DOG',
             birth_date=date(2020, 1, 1),
+            status=PetModelChoices.STATUS_CHOICES.ACTIVE,
             coverage_start=self.today - timedelta(days=30),
         )
 
