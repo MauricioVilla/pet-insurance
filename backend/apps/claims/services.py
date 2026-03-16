@@ -2,6 +2,7 @@ from rest_framework.exceptions import ValidationError
 
 from apps.core.services import BaseService
 from apps.users.constants import UserModelChoices
+from apps.pets.constants import PetModelChoices
 from .constants import ClaimModelChoices
 from .models import Claim
 
@@ -35,7 +36,7 @@ class ClaimService(BaseService):
     def validate_pet_ownership(self, pet, user):
         if pet.owner != user:
             raise ValidationError({'pet': 'You do not own this pet.'})
-        if pet.status != 'ACTIVE':
+        if pet.status != PetModelChoices.STATUS_CHOICES.ACTIVE:
             raise ValidationError({'pet': 'This pet does not have active coverage.'})
 
     def validate_coverage(self, pet, invoice_date):
