@@ -4,6 +4,8 @@ A full-stack application for managing pet insurance reimbursement claims.
 
 ## Tech Stack
 
+> 📘 **For a detailed guide on how the app works for each role (Customer, Support, Admin), see [GUIDE.md](GUIDE.md).**
+
 | Layer | Technology |
 |---|---|
 | Backend | Django 4.2 + Django REST Framework |
